@@ -1,0 +1,24 @@
+syntax = "proto3";
+package rambo_v1;
+
+// Convert to package import once the proposed proto merged into master
+
+enum RocosUriScheme {
+	GRPC = 0;
+}
+
+message RocosUri {
+	RocosUriScheme scheme = 1;
+	string authority = 2;
+	RocosUriPath path = 3; // Rename the path to url to give it a better understanding
+	map<string,string> query = 4; // Using map struct for queries instead of string
+}
+
+message RocosUriPath { 
+	string project = 1;
+	string callsign = 2;
+	string subsystem = 3;
+	string component = 4;
+	string topic = 5; 
+}
+

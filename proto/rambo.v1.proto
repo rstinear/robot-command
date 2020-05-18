@@ -1,0 +1,117 @@
+syntax = "proto3";
+import "uri.v1.proto";
+
+package rambo_v1;
+
+// SERVICE DEFINITIONS.
+service CommandReceiver {
+	rpc RegisterReceiver (stream ResponseChannelMessage) returns (stream RequestChannelMessage) {}
+}
+
+service Command {
+	//rpc LeaseExclusiveCommandChannel(stream ExclusiveCommandChannelMessage) returns (stream ResponseChannelMessage) {}
+	rpc CallCommand(CommandRequest) returns (stream ResponseChannelMessage) {}
+}
+
+/*service WebCommand {
+	rpc LeaseExclusiveCommandChannel(RocosUri) returns (ExecutionContext) {} // Web gRPC sdk doesn't fully support the bidirection stream, so we need a unary way for web client to lease the exlusive command channel
+	rpc CallCommand(CommandRequest) returns (stream ResponseChannelMessage) {}
+}*/
+
+// The actual gPRC message type
+message Heartbeat {} 
+
+message RequestChannelMessage {
+	oneof content {
+		Heartbeat heartbeat = 1;
+		CommandRequest commandRequest = 2;
+	}
+}
+
+message ResponseChannelMessage {
+	oneof content {
+		Heartbeat heartbeat = 1;
+		CommandResponse commandResponse = 2;
+		//ExecutionContext executionContext = 3; // The command request context for exclusive command channel lease request, all sub-sequence command request has to carry this context to gain the command execution permmision.
+	}
+}
+
+message ExclusiveCommandChannelMessage {
+	oneof content {
+		Heartbeat heartbeat = 1;
+		CommandRequest commandRequest = 2;
+		RocosUri uri = 3; // The destination of the leased exclusive command channel
+	}
+}
+
+message CommandResponse {
+	string txid = 1; // (Required) The unique transaction id of the command request. Used to map the command execution flow
+	Ack ack = 2;
+	CommandReturn return  = 3;
+	CommandResult result = 4;
+	uint64 seq = 5; // (Required) The sequence number of the command response message, starting at zero. It is possible due to retry logic that the controller receives the same command response twice (i.e. a message with the same sequence number twice). The client should drop any messages it receives for which it has received the sequence number previously, for the given transaction ID.
+	
+}
+
+enum CommandReturnType {
+	COMMAND_OUTPUT = 0;
+}; 
+
+enum AckStatus {
+	RECEIVED = 0;
+	PENDING = 2;
+	QUEUED = 3;
+	PROGRESS = 4;
+}
+
+enum ResultStatus {
+	COMPLETE_SUCCESS = 0;
+	CANCELLED = 10;
+	COMPLETE_ERROR = 11;
+	TIMED_OUT = 12;
+	REJECTED_ID = 13;
+	REJECTED_AUTH = 14;
+	REJECTED_PARAMS = 15;
+	REJECTED_NO_RECEIVER = 16;
+	FATAL = 17;
+}
+
+enum Stage {
+	CLOUD_GATEWAY = 0; 
+	DEVICE_GATEWAY = 1;
+	AGENT = 2;
+}
+
+message Ack {
+	Stage stage = 1; // (Required) The stage where the command request arrived
+	AckStatus status = 2; // (Required) Indicate if the current Ack is Ack or Nack
+	string message = 3; // Short message to describe the ack
+}
+
+message CommandReturn {
+	CommandReturnType type = 1; // (Required) Indicate if the command execution succeed or not
+    string message = 2; // Short message to describe the command return
+	bytes payload = 3; // The payload of the command return, it contains the actual output value of the
+}
+
+message CommandResult {
+	ResultStatus status = 1;
+	string message = 2; // Short message to describe the command result
+}
+
+message CommandRequest {
+	string txid = 1; // (Required) Transaction Id
+	RocosUri uri = 2; // (Required) The destination of the command request will be sent to, the command id will go into the topic of the uri and `command` will be used for the compnent segament
+
+	map<string,string> parameters = 10; // (Optional) The parameters and values map to be used within the command
+	bool requireAck = 11; // (Optional) If the current command request need acks from destination, default is shall be false
+	ExecutionContext context = 12; // (Optional) Context values to support the command execution, such as cryptographically secure token
+	//uint64 createdAt = 7; // (Required) The timestamp indicate when was the request created at
+	//uint64 ttlMs = 8; // (Optional) The ttl milliseonds before timing out the command execution
+	uint64 deadlineMs = 13; // (Optional) The deadline of the command exectuion should complete in unix ms timestamp
+}
+
+message ExecutionContext {
+	string executionToken = 1; // A special token allocated to the client to provide exclusive command execution channel. Command will be rejected for other client before the current exclusive execution channel released
+
+}

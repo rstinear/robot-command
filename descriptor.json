@@ -1,0 +1,38 @@
+{
+  "name": "robot-command",
+  "type": "flogo:activity",
+  "version": "0.0.1",
+  "title": "Robot Command",
+  "description": "Action to send a command to a robot",
+  "homepage": "https://github.com/rstinear/robot-command",
+  "settings": [
+    {
+      "name": "token",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "uri",
+      "type": "string",
+      "required": true
+    }
+  ],
+  "input": [
+    {
+      "name": "projectID",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "callsign",
+      "type": "string",
+      "required": true
+    }
+  ],
+  "output": [
+    {
+      "name": "anOutput",
+      "type": "string"
+    }
+  ]
+}
